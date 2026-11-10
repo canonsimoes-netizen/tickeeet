@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão de Tickets SD</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  :root {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #141414;
+    --bg-card: #1a1a1a;
+    --bg-hover: #222;
+    --border: #2a2a2a;
+    --text-primary: #e0e0e0;
+    --text-secondary: #888;
+    --accent: #4a9eff;
+    --orange: #e8913a;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --cyan: #00bcd4;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+
+  .header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-icon {
+    width: 36px; height: 36px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header-title { font-size: 16px; font-weight: 700; }
+  .header-subtitle { font-size: 11px; color: var(--text-secondary); }
+  .header-stats { font-size: 12px; color: var(--text-secondary); text-align: right; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    padding: 12px;
+    overflow-x: auto;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    min-width: 70px;
+  }
+  .stat-card.total { border-left: 3px solid var(--text-primary); }
+  .stat-card.open { border-left: 3px solid var(--orange); background: rgba(232,145,58,0.08); }
+  .stat-card.progress { border-left: 3px solid var(--cyan); background: rgba(0,188,212,0.08); }
+  .stat-card.resolved { border-left: 3px solid var(--green); background: rgba(46,204,113,0.08); }
+  .stat-card.closed { border-left: 3px solid var(--text-secondary); }
+
+  .stat-number { font-size: 22px; font-weight: 700; }
+  .stat-label { font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+  .stat-icon { font-size: 16px; margin-bottom: 4px; }
+
+  .tabs { display: flex; padding: 0 12px; gap: 4px; margin-bottom: 12px; }
+  .tab {
+    flex: 1; padding: 10px 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .tab.active { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
+
+  .actions-bar { padding: 0 12px; margin-bottom: 12px; }
+  .search-box {
+    display: flex; align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .search-box input {
+    flex: 1; background: none; border: none;
+    color: var(--text-primary); font-size: 14px; outline: none;
+  }
+  .search-box input::placeholder { color: var(--text-secondary); }
+
+  .filter-row { display: flex; gap: 8px; padding: 0 12px; margin-bottom: 12px; overflow-x: auto; }
+  .filter-select {
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 13px; outline: none;
+  }
+  .filter-select option { background: var(--bg-secondary); }
+
+  .table-container { padding: 0 12px 80px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px; }
+  th {
+    background: var(--bg-card);
+    padding: 10px 8px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-bottom: 2px solid var(--border);
+    position: sticky; top: 0;
+    white-space: nowrap;
+  }
+  td { padding: 10px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tr:hover td { background: var(--bg-hover); }
+
+  .ticket-id { font-weight: 700; color: var(--accent); font-size: 11px; }
+  .date-cell { color: var(--text-secondary); font-size: 11px; }
+
+  .badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .badge-open { background: rgba(232,145,58,0.15); color: var(--orange); border: 1px solid var(--orange); }
+  .badge-resolved { background: rgba(46,204,113,0.15); color: var(--green); border: 1px solid var(--green); }
+  .badge-progress { background: rgba(0,188,212,0.15); color: var(--cyan); border: 1px solid var(--cyan); }
+  .badge-closed { background: rgba(136,136,136,0.15); color: var(--text-secondary); border: 1px solid var(--text-secondary); }
+
+  .contact-list { padding: 0 12px 80px; display: flex; flex-direction: column; gap: 8px; }
+  .contact-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .contact-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .contact-name { font-weight: 700; font-size: 14px; }
+  .contact-tickets-count {
+    background: var(--accent); color: #fff;
+    border-radius: 50%; width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+  .contact-info { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+  .contact-info a { color: var(--accent); text-decoration: none; }
+  .contact-info-row { display: flex; align-items: center; gap: 6px; }
+  .contact-balcão {
+    font-size: 11px; color: var(--text-secondary);
+    margin-top: 6px; padding-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+
+  .modal-overlay {
+    display: none; position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--bg-secondary);
+    border-radius: 16px 16px 0 0;
+    width: 100%; max-width: 500px;
+    max-height: 85vh; overflow-y: auto;
+    padding: 20px;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+  .modal-field { margin-bottom: 12px; }
+  .modal-field-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px; }
+  .modal-field-value { font-size: 14px; font-weight: 600; }
+  .modal-close {
+    width: 100%; padding: 14px; margin-top: 16px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text-primary);
+    font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+
+  .import-screen {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 60vh; padding: 40px 20px;
+    text-align: center;
+  }
+  .import-icon { font-size: 64px; margin-bottom: 20px; opacity: 0.5; }
+  .import-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .import-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5; }
+  .import-btn {
+    padding: 14px 32px;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 12px;
+    font-size: 16px; font-weight: 700;
+    cursor: pointer; margin-bottom: 12px;
+  }
+  .import-hint { font-size: 12px; color: var(--text-secondary); }
+
+  .toast {
+    position: fixed; bottom: 80px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--green); color: #fff;
+    padding: 12px 24px; border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    z-index: 300; transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--red); }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    display: flex; padding: 8px 0;
+    z-index: 100;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 2px; padding: 6px;
+    cursor: pointer; color: var(--text-secondary);
+    font-size: 10px; font-weight: 600;
+  }
+  .nav-item.active { color: var(--accent); }
+  .nav-icon { font-size: 20px; }
+
+  .view-toggle { display: flex; gap: 4px; margin-bottom: 8px; padding: 0 12px; }
+  .view-btn {
+    padding: 6px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 12px; cursor: pointer;
+  }
+  .view-btn.active { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
+
+  .ticket-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px; margin-bottom: 8px;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .ticket-card:hover { background: var(--bg-hover); }
+  .ticket-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .ticket-card-id { font-weight: 700; font-size: 13px; color: var(--accent); }
+  .ticket-card-date { font-size: 11px; color: var(--text-secondary); }
+  .ticket-card-equip { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .ticket-card-balcão { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+  .ticket-card-contact { font-size: 12px; color: var(--text-primary); }
+  .ticket-card-avaria { font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-style: italic; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+  .empty-state-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .hidden { display: none !important; }
+
+  .status-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .status-btn {
+    padding: 6px 12px; border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 11px; font-weight: 600;
+    cursor: pointer;
+  }
+  .status-btn:active { transform: scale(0.95); }
+  .delete-btn-small { background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; padding: 4px; }
+
+  .fab-container { position: fixed; bottom: 70px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+  .fab {
+    border-radius: 50%; width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; border: none; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .fab-accent { background: var(--accent); color: #fff; box-shadow: 0 4px 12px rgba(74,158,255,0.3); }
+  .fab-primary { background: var(--text-primary); color: var(--bg-primary); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon">🔧</div>
+    <div>
+      <div class="header-title">Gestão de Tickets SD</div>
+      <div class="header-subtitle">Controlo de pedidos de assistência técnica</div>
+    </div>
+  </div>
+  <div class="header-stats" id="headerStats">0 tickets · 0 contactos</div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card total">
+    <div class="stat-icon">🎫</div>
+    <div class="stat-number" id="statTotal">0</div>
+    <div class="stat-label">Total</div>
+  </div>
+  <div class="stat-card open">
+    <div class="stat-icon">🕐</div>
+    <div class="stat-number" id="statOpen">0</div>
+    <div class="stat-label">Abertos</div>
+  </div>
+  <div class="stat-card progress">
+    <div class="stat-icon">🔄</div>
+    <div class="stat-number" id="statProgress">0</div>
+    <div class="stat-label">Em Curso</div>
+  </div>
+  <div class="stat-card resolved">
+    <div class="stat-icon">✅</div>
+    <div class="stat-number" id="statResolved">0</div>
+    <div class="stat-label">Resolvidos</div>
+  </div>
+  <div class="stat-card closed">
+    <div class="stat-icon">❌</div>
+    <div class="stat-number" id="statClosed">0</div>
+    <div class="stat-label">Fechados</div>
+  </div>
+</div>
+
+<div id="importScreen" class="import-screen">
+  <div class="import-icon">📥</div>
+  <div class="import-title">Importar Dados</div>
+  <div class="import-desc">
+    Importa o ficheiro CSV exportado da versão PC.<br>
+    Os contactos são extraídos automaticamente dos tickets.
+  </div>
+  <button class="import-btn" onclick="document.getElementById('csvInput').click()">
+    📁 Importar CSV
+  </button>
+  <div class="import-hint">Formato: Ticket;Data Receção;Estado;...;Avaria</div>
+  <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCSVImport(event)">
+</div>
+
+<div id="mainContent" class="hidden">
+  <div class="tabs">
+    <div class="tab active" data-tab="tickets" onclick="switchTab('tickets')">🎫 Tickets</div>
+    <div class="tab" data-tab="contacts" onclick="switchTab('contacts')">👥 Contactos</div>
+  </div>
+
+  <div id="ticketsTab">
+    <div class="actions-bar">
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" id="searchTickets" placeholder="Pesquisar ticket, contacto, marca, série, avaria..." oninput="filterTickets()">
+      </div>
+    </div>
+    <div class="filter-row">
+      <select class="filter-select" id="filterStatus" onchange="filterTickets()">
+        <option value="">Todos os estados</option>
+        <option value="Aberto">Aberto</option>
+        <option value="Resolvido">Resolvido</option>
+        <option value="Em Curso">Em Curso</option>
+        <option value="Fechado">Fechado</option>
+      </select>
+      <select class="filter-select" id="filterSort" onchange="filterTickets()">
+        <option value="date-desc">Data ↓</option>
+        <option value="date-asc">Data ↑</option>
+        <option value="id-desc">ID ↓</option>
+        <option value="id-asc">ID ↑</option>
+      </select>
+    </div>
+    <div class="view-toggle">
+      <div class="view-btn active" onclick="setTicketView('cards', this)">📋 Cartões</div>
+      <div class="view-btn" onclick="setTicketView('table', this)">📊 Tabela</div>
+    </div>
+    <div id="ticketsCards" class="table-container"></div>
+    <div id="ticketsTable" class="table-container hidden">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket</th>
+            <th>Data</th>
+            <th>Equipamento</th>
+            <th>Balcão</th>
+            <th>Contacto</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="ticketsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="contactsTab" class="hidden">
+    <div class="actions-bar">
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" id="searchContacts" placeholder="Pesquisar contacto..." oninput="filterContacts()">
+      </div>
+    </div>
+    <div id="contactsList" class="contact-list"></div>
+  </div>
+
+  <div class="fab-container">
+    <button class="fab fab-accent" onclick="exportCSV()" title="Exportar">📤</button>
+    <button class="fab fab-primary" onclick="document.getElementById('csvInput2').click()" title="Importar">📥</button>
+  </div>
+  <input type="file" id="csvInput2" accept=".csv" style="display:none" onchange="handleCSVImport(event)">
+</div>
+
+<div class="modal-overlay" id="ticketModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">Detalhe do Ticket</div>
+    <div id="modalContent"></div>
+    <button class="modal-close" onclick="closeModal()">Fechar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="bottom-nav" id="bottomNav" style="display:none;">
+  <div class="nav-item active" data-nav="tickets" onclick="switchTab('tickets')">
+    <span class="nav-icon">🎫</span><span>Tickets</span>
+  </div>
+  <div class="nav-item" data-nav="contacts" onclick="switchTab('contacts')">
+    <span class="nav-icon">👥</span><span>Contactos</span>
+  </div>
+  <div class="nav-item" data-nav="import" onclick="document.getElementById('csvInput2').click()">
+    <span class="nav-icon">📥</span><span>Importar</span>
+  </div>
+  <div class="nav-item" data-nav="export" onclick="exportCSV()">
+    <span class="nav-icon">📤</span><span>Exportar</span>
+  </div>
+</div>
+
+<script>
+let tickets = [];
+let contacts = [];
+let currentTab = 'tickets';
+let ticketView = 'cards';
+
+// ============ CSV PARSER ============
+function parseCSV(text) {
+  // Remove BOM
+  text = text.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return { headers: [], rows: [] };
+  
+  const firstLine = lines[0];
+  let delimiter = ';';
+  const semiCount = (firstLine.match(/;/g) || []).length;
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const tabCount = (firstLine.match(/\t/g) || []).length;
+  if (commaCount > semiCount && commaCount > tabCount) delimiter = ',';
+  else if (tabCount > semiCount) delimiter = '\t';
+
+  const headers = parseCSVLine(firstLine, delimiter).map(h => h.trim());
+  const result = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i], delimiter);
+    if (values.length === 0 || (values.length === 1 && !values[0].trim())) continue;
+    const row = {};
+    headers.forEach((h, idx) => {
+      row[h] = (values[idx] || '').trim();
+    });
+    result.push(row);
+  }
+  return { headers, rows: result };
+}
+
+function parseCSVLine(line, delimiter) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current); current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// ============ IMPORT ============
+function handleCSVImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const { headers, rows } = parseCSV(e.target.result);
+      if (rows.length === 0) {
+        showToast('Ficheiro vazio ou formato inválido', true);
+        return;
+      }
+      processData(headers, rows);
+    } catch (err) {
+      showToast('Erro ao processar: ' + err.message, true);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+  event.target.value = '';
+}
+
+function processData(headers, rows) {
+  const h = headers.map(x => x.toLowerCase());
+  
+  // Detectar colunas do formato real
+  const col = {
+    ticket: headers.find(x => x.toLowerCase() === 'ticket'),
+    data: headers.find(x => x.toLowerCase().includes('data')),
+    estado: headers.find(x => x.toLowerCase() === 'estado'),
+    tipoEquip: headers.find(x => x.toLowerCase().includes('tipo')),
+    marca: headers.find(x => x.toLowerCase() === 'marca'),
+    modelo: headers.find(x => x.toLowerCase() === 'modelo'),
+    serie: headers.find(x => x.toLowerCase().includes('série') || x.toLowerCase().includes('serie')),
+    instituicao: headers.find(x => x.toLowerCase() === 'instituição' || x.toLowerCase() === 'instituicao'),
+    localizacao: headers.find(x => x.toLowerCase() === 'localização' || x.toLowerCase() === 'localizacao'),
+    contacto: headers.find(x => x.toLowerCase() === 'contacto'),
+    telemovel: headers.find(x => x.toLowerCase().includes('telemóvel') || x.toLowerCase().includes('telemovel') || x.toLowerCase() === 'telefone'),
+    email: headers.find(x => x.toLowerCase() === 'email'),
+    avaria: headers.find(x => x.toLowerCase() === 'avaria')
+  };
+
+  if (!col.ticket) {
+    showToast('CSV sem coluna "Ticket" - formato não reconhecido', true);
+    return;
+  }
+
+  // Processar tickets
+  const newTickets = rows.map(row => {
+    let status = (row[col.estado] || '').trim();
+    let statusClean = 'Aberto';
+    const s = status.toLowerCase();
+    if (s.includes('resolvido')) statusClean = 'Resolvido';
+    else if (s.includes('curso') || s.includes('progress')) statusClean = 'Em Curso';
+    else if (s.includes('fechado') || s.includes('closed')) statusClean = 'Fechado';
+    else if (s.includes('aberto') || s.includes('open')) statusClean = 'Aberto';
+
+    const equipment = [row[col.marca], row[col.modelo]].filter(Boolean).join(' ');
+    const fullEquip = col.serie && row[col.serie] 
+      ? `${equipment} (${row[col.serie]})` 
+      : equipment;
+
+    return {
+      id: row[col.ticket] || '',
+      date: row[col.data] || '',
+      equipment: fullEquip,
+      equipmentType: row[col.tipoEquip] || '',
+      brand: row[col.marca] || '',
+      model: row[col.modelo] || '',
+      serial: row[col.serie] || '',
+      balcao: row[col.instituicao] || '',
+      location: row[col.localizacao] || '',
+      contact: row[col.contacto] || '',
+      phone: row[col.telemovel] || '',
+      email: row[col.email] || '',
+      avaria: row[col.avaria] || '',
+      status: statusClean,
+      statusDetail: status
+    };
+  }).filter(t => t.id);
+
+  tickets = newTickets;
+
+  // Extrair contactos únicos a partir dos tickets
+  const contactMap = new Map();
+  tickets.forEach(t => {
+    if (!t.contact) return;
+    const key = t.contact.toLowerCase();
+    if (!contactMap.has(key)) {
+      contactMap.set(key, {
+        name: t.contact,
+        phone: t.phone,
+        email: t.email,
+        balcao: t.balcao,
+        location: t.location,
+        tickets: 0
+      });
+    }
+    contactMap.get(key).tickets++;
+    // Atualizar dados se estiverem vazios
+    const c = contactMap.get(key);
+    if (!c.phone && t.phone) c.phone = t.phone;
+    if (!c.email && t.email) c.email = t.email;
+    if (!c.balcao && t.balcao) c.balcao = t.balcao;
+    if (!c.location && t.location) c.location = t.location;
+  });
+  contacts = Array.from(contactMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+  saveData();
+  showMainContent();
+  showToast(`✅ ${tickets.length} tickets e ${contacts.length} contactos importados!`);
+}
+
+function showMainContent() {
+  document.getElementById('importScreen').classList.add('hidden');
+  document.getElementById('mainContent').classList.remove('hidden');
+  document.getElementById('bottomNav').style.display = 'flex';
+  updateStats();
+  renderTickets();
+  renderContacts();
+}
+
+function saveData() {
+  localStorage.setItem('sd_tickets', JSON.stringify(tickets));
+  localStorage.setItem('sd_contacts', JSON.stringify(contacts));
+}
+
+function loadData() {
+  const t = localStorage.getItem('sd_tickets');
+  const c = localStorage.getItem('sd_contacts');
+  if (t) tickets = JSON.parse(t);
+  if (c) contacts = JSON.parse(c);
+  if (tickets.length > 0 || contacts.length > 0) showMainContent();
+}
+
+function updateStats() {
+  const total = tickets.length;
+  const open = tickets.filter(t => t.status === 'Aberto').length;
+  const progress = tickets.filter(t => t.status === 'Em Curso').length;
+  const resolved = tickets.filter(t => t.status === 'Resolvido').length;
+  const closed = tickets.filter(t => t.status === 'Fechado').length;
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statOpen').textContent = open;
+  document.getElementById('statProgress').textContent = progress;
+  document.getElementById('statResolved').textContent = resolved;
+  document.getElementById('statClosed').textContent = closed;
+  document.getElementById('headerStats').textContent = `${total} tickets · ${contacts.length} contactos`;
+}
+
+function getStatusBadge(status, detail) {
+  let cls = 'badge-open';
+  if (status === 'Resolvido') cls = 'badge-resolved';
+  else if (status === 'Em Curso') cls = 'badge-progress';
+  else if (status === 'Fechado') cls = 'badge-closed';
+  const text = (detail && detail !== status) ? detail : status;
+  return `<span class="badge ${cls}">${text}</span>`;
+}
+
+function renderTickets() {
+  const search = document.getElementById('searchTickets').value.toLowerCase();
+  const statusFilter = document.getElementById('filterStatus').value;
+  const sort = document.getElementById('filterSort').value;
+
+  let filtered = tickets.filter(t => {
+    const matchSearch = !search || 
+      t.id.toLowerCase().includes(search) ||
+      t.contact.toLowerCase().includes(search) ||
+      t.equipment.toLowerCase().includes(search) ||
+      t.balcao.toLowerCase().includes(search) ||
+      t.serial.toLowerCase().includes(search) ||
+      t.brand.toLowerCase().includes(search) ||
+      t.model.toLowerCase().includes(search) ||
+      (t.avaria && t.avaria.toLowerCase().includes(search));
+    const matchStatus = !statusFilter || t.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  filtered.sort((a, b) => {
+    if (sort === 'date-desc') return b.date.localeCompare(a.date);
+    if (sort === 'date-asc') return a.date.localeCompare(b.date);
+    if (sort === 'id-desc') return b.id.localeCompare(a.id);
+    if (sort === 'id-asc') return a.id.localeCompare(b.id);
+    return 0;
+  });
+
+  // Cards
+  const cardsContainer = document.getElementById('ticketsCards');
+  cardsContainer.innerHTML = filtered.map(t => `
+    <div class="ticket-card" onclick="openTicketDetail('${t.id.replace(/'/g, "\\'")}')">
+      <div class="ticket-card-top">
+        <span class="ticket-card-id">${t.id}</span>
+        <span class="ticket-card-date">${formatDate(t.date)}</span>
+      </div>
+      <div class="ticket-card-equip">${t.equipment}</div>
+      <div class="ticket-card-balcão">📍 ${t.balcao}</div>
+      <div class="ticket-card-contact">👤 ${t.contact}</div>
+      ${t.avaria ? `<div class="ticket-card-avaria">⚠️ ${t.avaria.substring(0, 80)}${t.avaria.length > 80 ? '...' : ''}</div>` : ''}
+      <div style="margin-top:8px;">${getStatusBadge(t.status, t.statusDetail)}</div>
+    </div>
+  `).join('');
+
+  if (filtered.length === 0) {
+    cardsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎫</div><div>Nenhum ticket encontrado</div></div>';
+  }
+
+  // Table
+  const tbody = document.getElementById('ticketsTableBody');
+  tbody.innerHTML = filtered.map(t => `
+    <tr onclick="openTicketDetail('${t.id.replace(/'/g, "\\'")}')" style="cursor:pointer;">
+      <td class="ticket-id">${t.id}</td>
+      <td class="date-cell">${formatDate(t.date)}</td>
+      <td>${t.equipment}</td>
+      <td>${t.balcao}</td>
+      <td>${t.contact}</td>
+      <td>${getStatusBadge(t.status, t.statusDetail)}</td>
+    </tr>
+  `).join('');
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  // 2026-11-09 → 09 NOV
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const months = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+    return `${parts[2]} ${months[parseInt(parts[1])-1]}`;
+  }
+  return dateStr;
+}
+
+function renderContacts() {
+  const search = document.getElementById('searchContacts').value.toLowerCase();
+  let filtered = contacts.filter(c => {
+    return !search || 
+      c.name.toLowerCase().includes(search) ||
+      (c.email && c.email.toLowerCase().includes(search)) ||
+      c.balcao.toLowerCase().includes(search) ||
+      (c.location && c.location.toLowerCase().includes(search));
+  });
+
+  const container = document.getElementById('contactsList');
+  container.innerHTML = filtered.map((c, idx) => `
+    <div class="contact-card">
+      <div class="contact-card-header">
+        <div class="contact-name">${c.name}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="contact-tickets-count">${c.tickets}</div>
+          <button class="delete-btn-small" onclick="deleteContact(${idx})">🗑</button>
+        </div>
+      </div>
+      <div class="contact-info">
+        ${c.phone ? `<div class="contact-info-row">📞 <a href="tel:${c.phone}">${c.phone}</a></div>` : ''}
+        ${c.email ? `<div class="contact-info-row">✉️ <a href="mailto:${c.email}">${c.email}</a></div>` : ''}
+      </div>
+      <div class="contact-balcão">📍 ${c.balcao}</div>
+      ${c.location ? `<div class="contact-balcão" style="border:none;padding-top:2px;">🗺️ ${c.location}</div>` : ''}
+    </div>
+  `).join('');
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div><div>Nenhum contacto encontrado</div></div>';
+  }
+}
+
+function openTicketDetail(id) {
+  const t = tickets.find(tk => tk.id === id);
+  if (!t) return;
+
+  document.getElementById('modalTitle').textContent = t.id;
+  document.getElementById('modalContent').innerHTML = `
+    <div class="modal-field">
+      <div class="modal-field-label">Data de Receção</div>
+      <div class="modal-field-value">${t.date}</div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-label">Tipo de Equipamento</div>
+      <div class="modal-field-value">${t.equipmentType}</div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-label">Marca / Modelo</div>
+      <div class="modal-field-value">${t.brand} ${t.model}</div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-label">Nº Série</div>
+      <div class="modal-field-value">${t.serial}</div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-label">Instituição / Balcão</div>
+      <div class="modal-field-value">${t.balcao}</div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-label">Localização</div>
+      <div class="modal-field-value">${t.location}</div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-label">Contacto</div>
+      <div class="modal-field-value">${t.contact}</div>
+    </div>
+    ${t.phone ? `<div class="modal-field"><div class="modal-field-label">Telemóvel</div><div class="modal-field-value"><a href="tel:${t.phone}" style="color:var(--accent);">${t.phone}</a></div></div>` : ''}
+    ${t.email ? `<div class="modal-field"><div class="modal-field-label">Email</div><div class="modal-field-value"><a href="mailto:${t.email}" style="color:var(--accent);">${t.email}</a></div></div>` : ''}
+    <div class="modal-field">
+      <div class="modal-field-label">Avaria / Descrição</div>
+      <div class="modal-field-value" style="font-weight:400;font-size:13px;line-height:1.4;">${t.avaria || '—'}</div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-label">Estado</div>
+      <div class="modal-field-value">${getStatusBadge(t.status, t.statusDetail)}</div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-field-label">Alterar Estado</div>
+      <div class="status-actions">
+        <button class="status-btn" onclick="changeStatus('${t.id.replace(/'/g, "\\'")}','Aberto')" style="border-color:var(--orange);color:var(--orange);">Aberto</button>
+        <button class="status-btn" onclick="changeStatus('${t.id.replace(/'/g, "\\'")}','Em Curso')" style="border-color:var(--cyan);color:var(--cyan);">Em Curso</button>
+        <button class="status-btn" onclick="changeStatus('${t.id.replace(/'/g, "\\'")}','Resolvido')" style="border-color:var(--green);color:var(--green);">Resolvido</button>
+        <button class="status-btn" onclick="changeStatus('${t.id.replace(/'/g, "\\'")}','Fechado')" style="border-color:var(--text-secondary);color:var(--text-secondary);">Fechado</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('ticketModal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('ticketModal').classList.remove('active');
+}
+
+function changeStatus(id, newStatus) {
+  const t = tickets.find(tk => tk.id === id);
+  if (t) {
+    t.status = newStatus;
+    t.statusDetail = newStatus;
+    saveData();
+    updateStats();
+    renderTickets();
+    openTicketDetail(id);
+    showToast(`Estado alterado para "${newStatus}"`);
+  }
+}
+
+function deleteContact(idx) {
+  if (confirm('Eliminar este contacto?')) {
+    contacts.splice(idx, 1);
+    saveData();
+    renderContacts();
+    updateStats();
+    showToast('Contacto eliminado');
+  }
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${tab}"]`)?.classList.add('active');
+  document.querySelector(`.nav-item[data-nav="${tab}"]`)?.classList.add('active');
+
+  if (tab === 'tickets') {
+    document.getElementById('ticketsTab').classList.remove('hidden');
+    document.getElementById('contactsTab').classList.add('hidden');
+  } else {
+    document.getElementById('ticketsTab').classList.add('hidden');
+    document.getElementById('contactsTab').classList.remove('hidden');
+    renderContacts();
+  }
+}
+
+function setTicketView(view, btn) {
+  ticketView = view;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (view === 'cards') {
+    document.getElementById('ticketsCards').classList.remove('hidden');
+    document.getElementById('ticketsTable').classList.add('hidden');
+  } else {
+    document.getElementById('ticketsCards').classList.add('hidden');
+    document.getElementById('ticketsTable').classList.remove('hidden');
+  }
+}
+
+function filterTickets() { renderTickets(); }
+function filterContacts() { renderContacts(); }
+
+function exportCSV() {
+  if (tickets.length === 0) {
+    showToast('Sem dados para exportar', true);
+    return;
+  }
+
+  // Exportar no mesmo formato do original
+  const headers = ['Ticket','Data Receção','Estado','Tipo Equipamento','Marca','Modelo','Nº Série','Instituição','Localização','Contacto','Telemóvel','Email','Avaria'];
+  let csv = headers.join(';') + '\n';
+  
+  tickets.forEach(t => {
+    const row = [
+      t.id, t.date, t.statusDetail || t.status,
+      t.equipmentType, t.brand, t.model, t.serial,
+      t.balcao, t.location, t.contact, t.phone, t.email, t.avaria
+    ];
+    csv += row.map(v => `"${(v || '').replace(/"/g, '""')}"`).join(';') + '\n';
+  });
+
+  downloadFile(csv, `tickets_sd_${new Date().toISOString().split('T')[0]}.csv`);
+  showToast('📤 CSV exportado!');
+}
+
+function downloadFile(content, filename) {
+  const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function showToast(msg, isError) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast' + (isError ? ' error' : '');
+  setTimeout(() => toast.classList.add('show'), 10);
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+document.getElementById('ticketModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+loadData();
+</script>
+</body>
+</html>
